@@ -6,8 +6,8 @@
 using namespace std;
 
 static const int NCENTROIDI = 30;
-static const int NPUNTI = 75000;
-static const int MAXTHREADS = 16;
+static const int NPUNTI = 2000;
+static const int MAXTHREADS = 1;
 
 struct centroide {
 	double x = 0; 
@@ -61,12 +61,10 @@ int main() {
 	uniform_real_distribution<double> urd(0.0, 100.0);
 	punto *p = generapunti(mt, urd);
 	centroide *c = generacent(mt, urd);
-
 	for(int i = 0; i < NCENTROIDI; i++){
 		printf("Centroide %d ha x:%f y:%f z:%f\n", i, c[i].x, c[i].y, c[i].z);
 	}
-	printf("\n\n");
-	
+	printf("\n\n");	
 	chrono::steady_clock::time_point inizio = chrono::steady_clock::now();
 	#pragma omp parallel default(none) shared(p, c, NCENTROIDI, NPUNTI, permutato) num_threads(MAXTHREADS)
 	{
@@ -78,7 +76,7 @@ int main() {
 			#pragma omp single
 			permutato = false;
 			
-			#pragma omp for schedule(dynamic, (int)ceil(NCENTROIDI/MAXTHREADS)) 
+			#pragma omp for
 			for (int i = 0; i < NPUNTI; i++) {
 				double mindist = INFINITY;
 				int temp = -1;
@@ -86,7 +84,6 @@ int main() {
 				
 				for (int j = 0; j < NCENTROIDI; j++) {
 					double dist = distanza(p[i].x, c[j].x, p[i].y, c[j].y, p[i].z, c[j].z);
-					//printf("Distanza tra punto %d e centroide %d = %f \n\n", i,j,dist);
 					if (dist < mindist) {
 						mindist = dist;
 						temp = j;
@@ -94,7 +91,6 @@ int main() {
 				}
 
 				if (temp != p[i].appartenenza) {
-					//printf("Thread %d ha permutato punto %d in centroide %d\n", omp_get_thread_num(), i, temp);
 					p[i].appartenenza = temp;
 					permutato = true;
 				}
@@ -124,7 +120,7 @@ int main() {
 
 				#pragma omp barrier
 
-				#pragma omp for nowait schedule(dynamic, (int)ceil(NCENTROIDI/MAXTHREADS)) 
+				#pragma omp for nowait
 				for(int n = 0; n < NCENTROIDI; n++) {
 					c[n].x /= c[n].numpunti;
 					c[n].y /= c[n].numpunti;
@@ -141,5 +137,4 @@ int main() {
 	cout << "Tempo d'esecuzione: " << (double)(chrono::duration_cast<std::chrono::milliseconds>(fine - inizio).count())/1000 << " secondi" << endl;
 	delete[](c);
 	delete[](p);
-	
 }
